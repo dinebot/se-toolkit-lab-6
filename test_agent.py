@@ -108,3 +108,61 @@ class TestAgentOutput:
         # stdout should be empty
         assert result.stdout.strip() == ""
 
+    def test_merge_conflict_question_uses_read_file(self):
+        """Test that asking about merge conflicts uses read_file tool.
+
+        This test verifies:
+        - Agent uses read_file tool to find information in wiki
+        - Source field contains wiki/git-workflow.md reference
+        """
+        result = run_agent("How do you resolve a merge conflict?")
+
+        # Check exit code
+        assert result.returncode == 0, f"Agent failed: {result.stderr}"
+
+        # Parse stdout as JSON
+        try:
+            output = json.loads(result.stdout)
+        except json.JSONDecodeError as e:
+            raise AssertionError(
+                f"Agent output is not valid JSON: {result.stdout!r}"
+            ) from e
+
+        # Check that tool_calls contains read_file
+        tool_calls = output.get("tool_calls", [])
+        assert len(tool_calls) > 0, "Expected at least one tool call"
+
+        tool_names = [call.get("tool") for call in tool_calls]
+        assert "read_file" in tool_names, "Expected read_file to be called"
+
+        # Check that source field contains wiki/git-workflow.md
+        source = output.get("source", "")
+        assert "wiki/git-workflow.md" in source, \
+            f"Expected 'wiki/git-workflow.md' in source, got: {source}"
+
+    def test_wiki_files_question_uses_list_files(self):
+        """Test that asking about wiki files uses list_files tool.
+
+        This test verifies:
+        - Agent uses list_files tool to discover wiki contents
+        """
+        result = run_agent("What files are in the wiki?")
+
+        # Check exit code
+        assert result.returncode == 0, f"Agent failed: {result.stderr}"
+
+        # Parse stdout as JSON
+        try:
+            output = json.loads(result.stdout)
+        except json.JSONDecodeError as e:
+            raise AssertionError(
+                f"Agent output is not valid JSON: {result.stdout!r}"
+            ) from e
+
+        # Check that tool_calls contains list_files
+        tool_calls = output.get("tool_calls", [])
+        assert len(tool_calls) > 0, "Expected at least one tool call"
+
+        tool_names = [call.get("tool") for call in tool_calls]
+        assert "list_files" in tool_names, "Expected list_files to be called"
+
